@@ -19,6 +19,12 @@
 const uint32_t MC_Expected_Serial_Number = 0x627E7A01;
 const uint16_t MC_Expected_FW_Version = 0xDC01;
 
+const uint16_t Motor_Max_RPM = 6500;
+
+int16_t Current_Motor_Speed = 0;
+
+uint8_t Number_of_Repeating_Channels = 0;
+
 
 void MC_Parse_Message(int DLC, uint8_t Data[]){
 	// The first step is to look at the first byte to figure out what we're looking at
@@ -31,7 +37,7 @@ void MC_Parse_Message(int DLC, uint8_t Data[]){
 			MC_Check_Error_Warning(Data);
 		break;
 
-		case N_actual:
+		case speed_actual:
 			MC_Parse_Actual_Speed(Data);
 		break;
 
@@ -51,12 +57,22 @@ void MC_Parse_Message(int DLC, uint8_t Data[]){
 }
 
 // this function is used to get data from the motor controller
-void MC_Request_Data(uint8_t RegID){
+void MC_Request_Data(uint8_t RegID, uint8_t Repeat_Time){
 
 	TxHeader.StdId = MC_CAN_ID_Tx;
-	TxHeader.DLC = 2;
+	TxHeader.DLC = 3;
 	TxData[0] = 0x3D; // this is the code to request data from MC
 	TxData[1] = RegID;
+
+	// The motor controller can only have max 8 channels on repeat time
+	// So, if a channel wants to be repeated, we check that there are fewer than 8
+	// Then, we set the repeating time and increase number of channels repeating
+	if ((Number_of_Repeating_Channels < 8) && (Repeat_Time != no_repeat)){
+		++Number_of_Repeating_Channels;
+		TxData[2] = Repeat_Time;
+	}
+	else
+		TxData[2] = no_repeat;
 
 	if (HAL_CAN_AddTxMessage(&hcan2, &TxHeader, TxData, &TxMailbox) != HAL_OK){
 		/* Transmission request Error */
@@ -103,8 +119,14 @@ void MC_Send_Data(uint8_t RegID, uint8_t data_to_send[], uint8_t size){
 
 }
 
+// This function parses the CAN data from motor controller for the actual RPM of the motor
 void MC_Parse_Actual_Speed(uint8_t Data[]){
-	// TODO
+	// Data is 2 bytes
+	// bit order is 7, 6, ..., 0    15, 14, ... 8
+	// 100% speed gives 0x7FFF
+	uint16_t Intermediate_Motor_Speed = (Data[2] << 8) | Data[1];
+	Current_Motor_Speed = Intermediate_Motor_Speed / 0x7FFF * Max_Motor_RPM;
+
 }
 
 
@@ -285,8 +307,8 @@ void MC_Check_Firmware(uint8_t Data[]){
 }
 
 void MC_Startup(){
-	MC_Request_Data(serial_number);
-	MC_Request_Data(firmware_version);
+	MC_Request_Data(serial_number, no_repeat);
+	MC_Request_Data(firmware_version, no_repeat);
 
 
 }

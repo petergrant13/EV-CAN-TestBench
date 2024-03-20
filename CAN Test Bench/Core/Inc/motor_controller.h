@@ -12,10 +12,11 @@
 
 
 enum motor_controller_speed_parameters{
-	N_actual = 0x30, // actual motor speed rpm
-	N_set = 0x31, // digital speed setpoint
-	N_cmd = 0x32, // command speed after ramp
-	N_error = 0x33, // speed error
+	// max value is 32767
+	speed_actual = 0x30, // actual motor speed rpm
+	speed_set = 0x31, // digital speed setpoint
+	speed_cmd = 0x32, // command speed after ramp
+	speed_error = 0x33, // speed error
 };
 
 enum motor_controller_current_parameters{
@@ -121,8 +122,9 @@ enum motor_controller_PI_values{
 };
 
 // The motor controller can send data repeatedly if so desired
+// Can only do max 8 channels though
 enum motor_controller_repeating_time{
-	none = 0,
+	no_repeat = 0,
 	one_hundred_ms = 0x64,
 };
 
@@ -142,7 +144,7 @@ enum motor_controller_startup{
 
 // Function Declarations
 void MC_Parse_Message(int DLC, uint8_t Data[]);
-void MC_Request_Data(uint8_t RegID);
+void MC_Request_Data(uint8_t RegID, uint8_t Repeat_Time);
 void MC_Send_Data(uint8_t RegID, uint8_t data_to_send[], uint8_t size);
 void MC_Parse_Actual_Speed(uint8_t Data[]);
 void MC_Check_Error_Warning(uint8_t Data[]);
