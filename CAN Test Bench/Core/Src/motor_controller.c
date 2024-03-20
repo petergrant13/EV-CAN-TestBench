@@ -14,29 +14,34 @@
 #include "pdu.h"
 
 
+// the calculations for speed/torque control happen in driving loop
+
 const uint32_t MC_Expected_Serial_Number = 0x627E7A01;
 const uint16_t MC_Expected_FW_Version = 0xDC01;
 
 
-const uint32_t max_motor_speed = 3277; // this limits rpm of motor for speed control setpoint
-uint8_t desired_motor_speed[2];
-
-// TODO need to figure out file with ADC stuff or use pointers and such
-uint32_t ADC_percentage;
-
-
 void MC_Parse_Message(int DLC, uint8_t Data[]){
 	// The first step is to look at the first byte to figure out what we're looking at
-	// TODO Need to make sure that Data[0] really is the first byte
+
+	// Then, we pass the rest of the message to the appropriate handlers
+	// The appropriate handlers need to ignore the first byte of Data[]
 	switch (Data[0]){
 		// important checks
 		case motor_controller_errors_warnings:
 			MC_Check_Error_Warning(Data);
 		break;
 
-		// .
-		// .
-		// .
+		case N_actual:
+			MC_Parse_Actual_Speed(Data);
+		break;
+
+		case serial_number:
+			MC_Check_Serial_Number(Data);
+		break;
+
+		case firmware_version:
+			MC_Check_Firmware(Data);
+		break;
 
 		default: // This is a code that is not recognized (bad)
 			Error_Handler();
@@ -49,10 +54,9 @@ void MC_Parse_Message(int DLC, uint8_t Data[]){
 void MC_Request_Data(uint8_t RegID){
 
 	TxHeader.StdId = MC_CAN_ID_Tx;
-	TxHeader.DLC = 3;
+	TxHeader.DLC = 2;
 	TxData[0] = 0x3D; // this is the code to request data from MC
 	TxData[1] = RegID;
-	TxData[2] = 0;
 
 	if (HAL_CAN_AddTxMessage(&hcan2, &TxHeader, TxData, &TxMailbox) != HAL_OK){
 		/* Transmission request Error */
@@ -99,22 +103,8 @@ void MC_Send_Data(uint8_t RegID, uint8_t data_to_send[], uint8_t size){
 
 }
 
-// The speed/torque control will either take the ADC value from APPSs then do math and send msg
-// Or we'll do the math in the main and then just send motor controller message
-void MC_Torque_Control(int todo){
-	// Need to figure out best way to do this
-}
-
-void MC_Speed_Control(int ADC_value){
-
-	// TODO verify endian and deal with source of data
-	ADC_percentage = ADC_value / (0xFFF);
-	uint16_t scaled_motor_speed = ADC_percentage*max_motor_speed;
-
-	desired_motor_speed[0] = (scaled_motor_speed & 0xff00) >> 8;
-	desired_motor_speed[1] = scaled_motor_speed & 0x00ff;
-
-	MC_Send_Data(N_set, desired_motor_speed, 2);
+void MC_Parse_Actual_Speed(uint8_t Data[]){
+	// TODO
 }
 
 
@@ -140,6 +130,8 @@ void MC_Check_Error_Warning(uint8_t Data[]){
 
 	// All the error flags should be zero
 	if (MC_errors){
+		// shutdown here
+
 		// Compare errors to errors bitmask to determine error
 		if (MC_errors & eprom_read_error){
 			// bad
@@ -192,6 +184,8 @@ void MC_Check_Error_Warning(uint8_t Data[]){
 	}
 
 	if (MC_warnings){
+		// suspend or shutdown here
+
 		// compare warnings to warnings bitmask
 		if (MC_warnings & parameter_conflict_detected){
 			// not great
@@ -244,16 +238,57 @@ void MC_Check_Error_Warning(uint8_t Data[]){
 	}
 }
 
+
+
+
+// -----------------------------------------------------------------------------------
+// Startup checks
+
 void MC_Check_Serial_Number(uint8_t Data[]){
-	// TODO
+	// the serial number is 4 bytes of data
+	uint8_t MC_Read_Serial_Numbers[4] = {0};
+	uint32_t MC_Read_Serial_Number = 0;
+
+	for (int i = 0; i < 4; ++i){
+		MC_Read_Serial_Numbers[i] = Data[i+1];
+	}
+
+	MC_Read_Serial_Number = (MC_Read_Serial_Numbers[0] << 24) | (MC_Read_Serial_Numbers[1] << 16)
+							| (MC_Read_Serial_Numbers[2] << 8) | MC_Read_Serial_Numbers[3];
+
+	if (MC_Read_Serial_Number != MC_Expected_Serial_Number){
+		// bad
+		// add what we want to do
+
+		// return;
+	}
+	// if this code runs, serial number good
 }
 
 void MC_Check_Firmware(uint8_t Data[]){
-	// TODO
+	uint8_t MC_Read_Firmwares[2] = {0};
+	uint32_t MC_Read_Firmware = 0;
+
+
+	MC_Read_Firmwares[0] = Data[1];
+	MC_Read_Firmwares[1] = Data[2];
+
+	MC_Read_Firmware = (MC_Read_Firmwares[0] << 8) | MC_Read_Firmwares[1];
+
+	if (MC_Read_Firmware != MC_Expected_FW_Version){
+		// bad
+		// add what we want to do
+
+		// return;
+	}
+	// if this code runs, firmware good
 }
 
 void MC_Startup(){
-	// MC_Send_Data(...)
+	MC_Request_Data(serial_number);
+	MC_Request_Data(firmware_version);
+
+
 }
 
 

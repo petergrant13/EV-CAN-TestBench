@@ -6,6 +6,7 @@
  *      Blame me for bad code
  */
 #include "imd.h"
+#include "motor_controller.h"
 
 // startup happens when GLV master switch gets turned on
 // As soon as there is GLV power, the control board will be performing these checks
@@ -34,10 +35,9 @@ void Check_Devices(){
 	// - Need to incorporate digital inputs of shutdown circuit to make sure devices are outputting
 	// - Need to worry about when tractive system has voltage and such
 	IMD_Startup();
+	MC_Startup();
 
 	// BMS_Startup();
-	// Motor_controller_Startup();
-
 
 }
 

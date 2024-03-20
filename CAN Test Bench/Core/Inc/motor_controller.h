@@ -135,6 +135,7 @@ enum motor_controller_limp_mode{
 enum motor_controller_startup{
 	clear_errors = 0x8E,
 	firmware_version = 0x1B,
+	serial_number = 0x62,
 };
 
 
@@ -143,8 +144,7 @@ enum motor_controller_startup{
 void MC_Parse_Message(int DLC, uint8_t Data[]);
 void MC_Request_Data(uint8_t RegID);
 void MC_Send_Data(uint8_t RegID, uint8_t data_to_send[], uint8_t size);
-void MC_Torque_Control(int todo);
-void MC_Speed_Control(int todo);
+void MC_Parse_Actual_Speed(uint8_t Data[]);
 void MC_Check_Error_Warning(uint8_t Data[]);
 void MC_Check_Serial_Number(uint8_t Data[]);
 void MC_Check_Firmware(uint8_t Data[]);

@@ -72,7 +72,7 @@ uint16_t adc2_CoolantFlow;
 //int adc_conv_complete_flag = 0;
 int ready_to_drive = 0;
 int outofrange = 0;
-int hardbreak = 0;
+int hardbrake = 0;
 
 //State of da vehicle
 enum vehicle_state_t vehicle_state = init;
